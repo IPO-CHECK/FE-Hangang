@@ -1,6 +1,7 @@
 <script setup>
 import {computed, ref} from 'vue'
 import {useRouter} from 'vue-router'
+import {getUpcomingIpos} from '../api'
 
 const router = useRouter()
 
@@ -8,6 +9,7 @@ const router = useRouter()
 // const ipoList = ref([])           // 데이터 담을 곳
 const isLoading = ref(false)       // 로딩 중인지 여부
 const isError = ref(false)        // 에러 발생 여부
+const errorMessage = ref('')
 
 // 무한 스크롤용 변수
 const page = ref(0)        // 현재 페이지 (0부터 시작한다고 가정)
@@ -223,6 +225,37 @@ function goDetail(id) {
   router.push({name: 'detail', params: {id}})
 }
 
+function goFirstUpcoming() {
+  const firstId = ipoList.value[0]?.id || 1
+  goDetail(firstId)
+}
+
+async function loadUpcomingFromDb() {
+  if (isLoading.value) return
+  try {
+    isLoading.value = true
+    isError.value = false
+    errorMessage.value = ''
+    const data = await getUpcomingIpos()
+    const list = Array.isArray(data) ? data : []
+    ipoList.value = list.map(item => ({
+      id: item.id,
+      name: item.corpName,
+      industry: item.industry || '-',
+      underwriter: item.underwriter || '-',
+      subDate: item.subDate || '-',
+      listDate: item.listDate || '-',
+      status: '청약예정',
+      price: item.price || '-',
+    }))
+  } catch (e) {
+    isError.value = true
+    errorMessage.value = e.message || '데이터 로딩 실패'
+  } finally {
+    isLoading.value = false
+  }
+}
+
 </script>
 
 <template>
@@ -244,6 +277,12 @@ function goDetail(id) {
         <div>
           <h1 class="text-2xl font-bold text-toss-black">상장 예정 기업</h1>
           <p class="text-sm text-toss-grayText mt-1">IPO 일정과 청약 정보를 한눈에 확인하세요</p>
+          <button
+            class="mt-3 px-4 py-2 bg-toss-blue text-white rounded-toss text-sm font-medium hover:opacity-90"
+            @click="loadUpcomingFromDb"
+          >
+            테스트: 상장 예정 기업 보기
+          </button>
         </div>
       </div>
     </header>
@@ -277,7 +316,10 @@ function goDetail(id) {
         </button>
       </div>
 
-      <div v-if="filteredIpoList.length === 0 && !isLoading" class="text-center py-10">
+      <div v-if="isError" class="text-center py-6">
+        <p class="text-red-500 text-sm">{{ errorMessage }}</p>
+      </div>
+      <div v-else-if="filteredIpoList.length === 0 && !isLoading" class="text-center py-10">
         <p class="text-toss-grayText">검색 결과가 없습니다.</p>
       </div>
 

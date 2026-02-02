@@ -2,6 +2,7 @@
 import { ref, onMounted, watch, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import * as echarts from 'echarts'
+import { getUpcomingIpo, getUpcomingIpoRiskAnalysis } from '../api'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,6 +13,9 @@ const id = route.params.id
 const company = ref(null)         // 기업 상세 데이터
 const isLoading = ref(true)       // 로딩 상태 (테스트용)
 const isError = ref(false)
+const riskAnalysis = ref('')
+const riskLoading = ref(false)
+const riskError = ref('')
 
 // --- 차트 및 필터 상태 ---
 const performanceChartRef = ref(null)
@@ -24,8 +28,6 @@ const selectedDeepCategory = ref('growth')
 const selectedDeepMetric = ref('')
 const selectedPeerId = ref(null)
 const selectedValuationScenario = ref('standard')
-
-const API_BASE_URL = 'http://localhost:8080/api'
 
 const dummyData = {
   1: {
@@ -216,17 +218,20 @@ const fetchCompanyDetail = async (corpId) => {
 }
 */
 
-// 📡 [수정] 백엔드 대신 더미 데이터를 불러오는 함수
-const fetchCompanyDetail = (corpId) => {
-  // 실제 API 호출하는 척 (로딩 스피너 확인용 0.5초 딜레이)
+const fetchCompanyDetail = async (corpId) => {
   isLoading.value = true
+  isError.value = false
 
-  setTimeout(() => {
-    // 1. 더미 데이터에서 id로 찾기 (없으면 1번 데이터 사용)
-    const data = dummyData[corpId] || dummyData[1]
-    company.value = data
+  try {
+    const upcoming = await getUpcomingIpo(corpId)
+    const base = dummyData[1]
+    company.value = {
+      ...base,
+      id: upcoming.id,
+      name: upcoming.corpName,
+      industry: upcoming.industry || base.industry,
+    }
 
-    // 2. 데이터 로드 후 초기값 설정
     if (company.value?.deepMetrics?.growth?.items?.length > 0) {
       selectedDeepMetric.value = company.value.deepMetrics.growth.items[0].key
     }
@@ -234,13 +239,27 @@ const fetchCompanyDetail = (corpId) => {
       selectedPeerId.value = company.value.peers[0].id
     }
 
-    // 3. 차트 그리기
+    await nextTick()
+    renderPerfChart()
+    renderDeepChart()
+  } catch (error) {
+    console.error('API 호출 실패:', error)
+    isError.value = true
+  } finally {
     isLoading.value = false
-    nextTick(() => {
-      renderPerfChart()
-      renderDeepChart()
-    })
-  }, 500) // 0.5초 뒤 실행
+  }
+
+  try {
+    riskLoading.value = true
+    riskError.value = ''
+    const analysis = await getUpcomingIpoRiskAnalysis(corpId)
+    riskAnalysis.value = analysis?.analysisText || ''
+  } catch (error) {
+    riskError.value = '위험 분석을 불러오지 못했습니다.'
+    riskAnalysis.value = ''
+  } finally {
+    riskLoading.value = false
+  }
 }
 
 // --- 차트 렌더링 함수 ---
@@ -708,15 +727,9 @@ watch([selectedDeepCategory, selectedDeepMetric, selectedPeerId], renderDeepChar
               <span class="text-[12px] font-bold text-[#3182F6]">AI 요약</span>
               <div class="h-[1px] flex-1 bg-gray-100"></div>
             </div>
-            <div class="space-y-2">
-              <div v-for="(summary, idx) in company.riskReport.aiSummary" :key="idx"
-                   class="flex gap-3 items-start group">
-                <span class="text-[#3182F6] font-serif text-[16px] leading-none mt-0.5 opacity-50 group-hover:opacity-100 transition-opacity">"</span>
-                <p class="text-[14px] text-[#333D4B] leading-relaxed font-medium">
-                  {{ summary }}
-                </p>
-              </div>
-            </div>
+            <div v-if="riskLoading" class="text-[13px] text-[#8B95A1]">분석 생성 중...</div>
+            <div v-else-if="riskError" class="text-[13px] text-[#EF4444]">{{ riskError }}</div>
+            <pre v-else class="text-[13px] text-[#333D4B] leading-relaxed whitespace-pre-wrap">{{ riskAnalysis }}</pre>
           </div>
 
           <div class="space-y-3">
