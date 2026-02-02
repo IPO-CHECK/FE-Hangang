@@ -61,9 +61,27 @@ const dummyData = {
       netIncome: [20, 25, 30, 60, 90, 110]
     },
     peers: [
-      { id: 101, name: '네이버페이', info: 'PER 25.4배' },
-      { id: 102, name: '토스', info: 'PER - 배' },
-      { id: 103, name: '뱅크샐러드', info: 'PER 18.2배' }
+      {
+        id: 101,
+        name: "네이버페이",
+        marketCap: "28조 5,000억",  // 시가총액 (체급)
+        per: "25.4배",              // PER (기본)
+        pbr: "1.8배"                // PBR (자산가치)
+      },
+      {
+        id: 102,
+        name: "토스",
+        marketCap: "9조 1,000억",
+        per: "10배",                 // 적자인 경우
+        pbr: "3.2배"
+      },
+      {
+        id: 103,
+        name: "뱅크샐러드",
+        marketCap: "4,500억",
+        per: "18.2배",
+        pbr: "2.5배"
+      }
     ],
     deepMetrics: {
       growth: {
@@ -111,11 +129,19 @@ const dummyData = {
       standard: { label: '시장표준 시나리오', price: '20,000원', gap: '+33%', basis: '유사 기업 평균 PER 20배를 적용한 가장 합리적인 목표가입니다.', per: '20.0배', netIncome: '1,000억 원', shares: '5,000만 주', formula: '(1,000억 × 20배) / 5,000만 주 = 20,000원' },
       aggressive: { label: '공격적 시나리오', price: '32,000원', gap: '+23%', basis: '신사업 확장 및 시장 호황을 가정한 공격적 접근입니다.', per: '25.0배', netIncome: '1,200억 원', shares: '5,000만 주', formula: '(1,200억 × 25배) / 5,000만 주 = 32,000원' }
     },
-    risks: [
-      { title: '유통물량 주의 (40%)', desc: '상장 직후 오버행 이슈 발생 가능성' },
-      { title: '규제 리스크', desc: '금융소비자보호법 강화에 따른 매출 영향' },
-      { title: '금리 인상', desc: '조달 금리 상승으로 인한 이자 비용 증가' }
-    ]
+    riskReport: {
+      grade: "CAUTION", // 'SAFE' | 'CAUTION' | 'DANGER' (등급)
+      score: 65, // 위험도 점수 (0~100, 높을수록 안전)
+      aiSummary: [
+        "최근 3년간 영업이익률이 감소 추세에 있어 수익성 개선 모니터링이 필요합니다.",
+        "원자재 가격 상승에 따른 마진율 저하가 우려되는 구간입니다.",
+        "다만, 부채비율은 업계 평균 이하로 재무적 안정성은 유지하고 있습니다."
+      ],
+      factors: [ // 기존 상세 리스크 항목
+        { title: "유통물량 주의", desc: "상장 직후 오버행 이슈 발생 가능성", severity: "high" },
+        { title: "원자재 가격 변동", desc: "국제 유가 상승에 따른 원가 부담 증가", severity: "medium" }
+      ]
+    }
   }
 }
 
@@ -293,6 +319,38 @@ onMounted(() => {
   })
 })
 
+// 리스크 등급에 따른 스타일 및 텍스트 반환
+const getRiskLevelInfo = (grade) => {
+  if (grade === 'SAFE') {
+    return {
+      label: '안전',
+      desc: '통상적인 사업 위험 수준입니다.',
+      color: 'text-green-600',
+      bg: 'bg-green-50',
+      border: 'border-green-200',
+      icon: '🟢'
+    }
+  } else if (grade === 'CAUTION') {
+    return {
+      label: '주의',
+      desc: '모니터링이 필요한 대외 변수가 존재합니다.',
+      color: 'text-amber-600',
+      bg: 'bg-amber-50',
+      border: 'border-amber-200',
+      icon: '🟡'
+    }
+  } else {
+    return {
+      label: '위험',
+      desc: '투자 원금 손실 가능성이 있는 중대 리스크가 있습니다.',
+      color: 'text-red-600',
+      bg: 'bg-red-50',
+      border: 'border-red-200',
+      icon: '🔴'
+    }
+  }
+}
+
 // --- Watcher ---
 watch(selectedPerfMetric, renderPerfChart)
 watch(selectedDeepCategory, (newVal) => {
@@ -446,13 +504,30 @@ watch([selectedDeepCategory, selectedDeepMetric, selectedPeerId], renderDeepChar
           </div>
           <div class="grid grid-cols-3 gap-3">
             <div v-for="(peer, idx) in company.peers" :key="peer.id"
-                 class="bg-[#F9FAFB] rounded-[16px] p-4 flex flex-col items-center text-center border border-transparent hover:border-blue-100 transition-colors">
-              <span
-                  class="w-6 h-6 rounded-full bg-white text-[12px] font-bold flex items-center justify-center text-[#3182F6] shadow-sm mb-2 border border-gray-50">
-                {{ String.fromCharCode(65 + idx) }}
-              </span>
-              <p class="text-[14px] font-bold text-[#333D4B] mb-0.5">{{ peer.name }}</p>
-              <p class="text-[11px] text-[#8B95A1]">{{ peer.info }}</p>
+                 class="bg-[#F9FAFB] rounded-[16px] p-4 flex flex-col items-center text-center border border-transparent hover:border-blue-100 transition-colors cursor-pointer">
+
+      <span class="w-6 h-6 rounded-full bg-white text-[12px] font-bold flex items-center justify-center text-[#3182F6] shadow-sm mb-2 border border-gray-50">
+        {{ String.fromCharCode(65 + idx) }}
+      </span>
+
+              <p class="text-[14px] font-bold text-[#333D4B] mb-1.5 truncate w-full">{{ peer.name }}</p>
+
+              <div class="bg-white px-2 py-1 rounded-[6px] border border-gray-100 mb-2 w-full">
+                <p class="text-[10px] text-[#8B95A1] mb-0.5">시가총액</p>
+                <p class="text-[12px] font-bold text-[#333D4B]">{{ peer.marketCap }}</p>
+              </div>
+
+              <div class="flex justify-center gap-2 w-full">
+                <div class="text-center">
+                  <span class="text-[9px] text-[#8B95A1] block">PER</span>
+                  <span class="text-[11px] font-medium text-[#4E5968]">{{ peer.per }}</span>
+                </div>
+                <div class="w-[1px] bg-gray-200 h-6"></div> <div class="text-center">
+                <span class="text-[9px] text-[#8B95A1] block">PBR</span>
+                <span class="text-[11px] font-medium text-[#4E5968]">{{ peer.pbr }}</span>
+              </div>
+              </div>
+
             </div>
           </div>
         </section>
@@ -562,29 +637,78 @@ watch([selectedDeepCategory, selectedDeepMetric, selectedPeerId], renderDeepChar
           </div>
         </section>
 
-        <section class="bg-white rounded-[24px] p-6 shadow-[0_2px_16px_rgba(0,0,0,0.03)]">
-          <h2 class="text-[19px] font-bold text-[#333D4B] mb-5 flex items-center gap-2">
-            <span class="bg-red-100 p-1 rounded-full">
-              <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#EF4444]" viewBox="0 0 20 20"
-                   fill="currentColor">
-                <path fill-rule="evenodd"
-                      d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z"
-                      clip-rule="evenodd"/>
-              </svg>
-            </span>
-            체크 포인트
+        <section class="bg-white rounded-[24px] p-6 shadow-[0_2px_16px_rgba(0,0,0,0.03)] overflow-hidden relative">
+          <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+
+          <h2 class="text-[19px] font-bold text-[#191F28] mb-6 flex items-center gap-2 relative z-10">
+    <span class="bg-blue-100 p-1.5 rounded-lg">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-[#3182F6]" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+      </svg>
+    </span>
+            핵심 투자 위험 분석
           </h2>
+
+          <div class="bg-gray-50 rounded-[20px] p-5 mb-5 border border-gray-100">
+            <div class="flex justify-between items-start mb-4">
+              <div>
+                <p class="text-[13px] text-[#8B95A1] mb-1">AI 리스크 종합 진단</p>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-[22px] font-bold" :class="getRiskLevelInfo(company.riskReport.grade).color">
+                    {{ getRiskLevelInfo(company.riskReport.grade).label }} 단계
+                  </h3>
+                  <span class="text-[12px] px-2 py-1 rounded-full font-medium"
+                        :class="[getRiskLevelInfo(company.riskReport.grade).bg, getRiskLevelInfo(company.riskReport.grade).color]">
+            Score {{ company.riskReport.score }}
+          </span>
+                </div>
+              </div>
+              <div class="flex gap-1.5 bg-white p-1.5 rounded-full shadow-sm border border-gray-100">
+                <div class="w-4 h-4 rounded-full transition-all duration-300"
+                     :class="company.riskReport.grade === 'SAFE' ? 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)] scale-110' : 'bg-gray-200'"></div>
+                <div class="w-4 h-4 rounded-full transition-all duration-300"
+                     :class="company.riskReport.grade === 'CAUTION' ? 'bg-amber-400 shadow-[0_0_8px_rgba(251,191,36,0.5)] scale-110' : 'bg-gray-200'"></div>
+                <div class="w-4 h-4 rounded-full transition-all duration-300"
+                     :class="company.riskReport.grade === 'DANGER' ? 'bg-red-500 shadow-[0_0_8px_rgba(239,68,68,0.5)] scale-110' : 'bg-gray-200'"></div>
+              </div>
+            </div>
+
+            <p class="text-[13px] text-[#4E5968] leading-snug">
+              {{ getRiskLevelInfo(company.riskReport.grade).desc }}
+            </p>
+          </div>
+
+          <div class="mb-6">
+            <div class="flex items-center gap-2 mb-3">
+              <span class="text-[12px] font-bold text-[#3182F6]">AI 요약</span>
+              <div class="h-[1px] flex-1 bg-gray-100"></div>
+            </div>
+            <div class="space-y-2">
+              <div v-for="(summary, idx) in company.riskReport.aiSummary" :key="idx"
+                   class="flex gap-3 items-start group">
+                <span class="text-[#3182F6] font-serif text-[16px] leading-none mt-0.5 opacity-50 group-hover:opacity-100 transition-opacity">"</span>
+                <p class="text-[14px] text-[#333D4B] leading-relaxed font-medium">
+                  {{ summary }}
+                </p>
+              </div>
+            </div>
+          </div>
+
           <div class="space-y-3">
-            <div v-for="(risk, idx) in company.risks" :key="idx"
-                 class="bg-[#FEF2F2] rounded-[16px] p-4 border border-transparent hover:border-red-100 transition-colors">
+            <div v-for="(risk, idx) in company.riskReport.factors" :key="idx"
+                 class="bg-white border border-[#E5E8EB] rounded-[16px] p-4 hover:border-blue-200 transition-colors cursor-pointer group">
               <div class="flex items-start gap-3">
-                <span
-                    class="bg-white text-[#EF4444] w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold shadow-sm mt-0.5 shrink-0">
-                  {{ idx + 1 }}
-                </span>
+                <div class="mt-0.5">
+                  <svg v-if="risk.severity === 'high'" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-red-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                  </svg>
+                  <svg v-else xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-amber-500" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd" />
+                  </svg>
+                </div>
                 <div>
-                  <h3 class="text-[14px] font-bold text-[#191F28] mb-1">{{ risk.title }}</h3>
-                  <p class="text-[13px] text-[#5F6E76] leading-relaxed">{{ risk.desc }}</p>
+                  <h3 class="text-[14px] font-bold text-[#191F28] mb-1 group-hover:text-[#3182F6] transition-colors">{{ risk.title }}</h3>
+                  <p class="text-[13px] text-[#6B7684] leading-relaxed">{{ risk.desc }}</p>
                 </div>
               </div>
             </div>
