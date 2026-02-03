@@ -721,13 +721,41 @@ watch([selectedDeepCategory, selectedDeepMetric, selectedPeerId], renderDeepChar
           </div>
 
           <div class="mb-6">
-            <div class="flex items-center gap-2 mb-3">
-              <span class="text-[12px] font-bold text-[#3182F6]">AI 요약</span>
-              <div class="h-[1px] flex-1 bg-gray-100"></div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <span class="text-[12px] font-bold text-[#3182F6]">AI 요약</span>
+                <span class="text-[10px] text-[#6B7684] bg-blue-50 px-2 py-0.5 rounded-full">내부 공시 기반</span>
+              </div>
+              <span class="text-[10px] text-[#B0B8C1]">자동 분석</span>
             </div>
-            <div v-if="riskLoading" class="text-[13px] text-[#8B95A1]">분석 생성 중...</div>
-            <div v-else-if="riskError" class="text-[13px] text-[#EF4444]">{{ riskError }}</div>
-            <pre v-else class="text-[13px] text-[#333D4B] leading-relaxed whitespace-pre-wrap">{{ riskAnalysis }}</pre>
+
+            <div class="rounded-[18px] border border-[#E6EDF5] bg-gradient-to-b from-white to-[#F8FAFC] shadow-[0_8px_24px_rgba(0,0,0,0.04)] overflow-hidden">
+              <div class="flex items-center justify-between px-4 py-3 border-b border-[#EDF2F7] bg-white/80 backdrop-blur">
+                <div class="flex items-center gap-2">
+                  <span class="inline-flex items-center justify-center w-6 h-6 rounded-full bg-blue-50 text-[#3182F6] text-[12px] font-bold">AI</span>
+                  <span class="text-[13px] font-bold text-[#191F28]">핵심 투자 위험 해석</span>
+                </div>
+                <span class="text-[10px] text-[#8B95A1]">요약·해석</span>
+              </div>
+
+              <div class="p-4">
+                <div v-if="riskLoading" class="flex items-center gap-2 text-[13px] text-[#8B95A1]">
+                  <svg class="animate-spin h-4 w-4 text-[#3182F6]" xmlns="http://www.w3.org/2000/svg" fill="none"
+                       viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor"
+                          d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  분석 생성 중...
+                </div>
+                <div v-else-if="riskError" class="text-[13px] text-[#EF4444]">
+                  {{ riskError }}
+                </div>
+                <pre v-else class="text-[13px] md:text-[14px] text-[#333D4B] leading-7 tracking-[-0.2px] whitespace-pre-wrap font-sans">
+{{ riskAnalysis }}
+                </pre>
+              </div>
+            </div>
           </div>
 
           <div class="space-y-3">
