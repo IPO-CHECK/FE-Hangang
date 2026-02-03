@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch, nextTick } from 'vue'
+import { ref, onMounted, watch, nextTick, computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import * as echarts from 'echarts'
 import { getUpcomingIpo, getUpcomingIpoRiskAnalysis } from '../api'
@@ -16,6 +16,40 @@ const isError = ref(false)
 const riskAnalysis = ref('')
 const riskLoading = ref(false)
 const riskError = ref('')
+
+const analysisSections = computed(() => {
+  const text = (riskAnalysis.value || '').trim()
+  if (!text) {
+    return { summaryItems: [], judgmentText: '' }
+  }
+  const summaryMatch = text.match(/[\[【]핵심 투자 리스크 요약[\]】]\s*([\s\S]*?)(?=\n\s*[\[【]종합 판단[\]】]|$)/)
+  const judgmentMatch = text.match(/[\[【]종합 판단[\]】]\s*([\s\S]*)$/)
+  const summaryText = summaryMatch ? summaryMatch[1].trim() : ''
+  const judgmentText = judgmentMatch ? judgmentMatch[1].trim() : ''
+
+  const summaryItems = summaryText
+    .split(/\n\s*\d+\.\s*/)
+    .map(s => s.trim())
+    .filter(Boolean)
+
+  return {
+    summaryItems: summaryItems.map(item => {
+      const cleaned = formatArrowBreaks(item)
+      const parts = cleaned.split('\n')
+      const title = parts.shift() || ''
+      const body = parts.join('\n').trim()
+      return { title, body }
+    }),
+    judgmentText: formatArrowBreaks(judgmentText),
+  }
+})
+
+function formatArrowBreaks(text) {
+  if (!text) return ''
+  return text
+    .replace(/^\s*\d+\.\s*/, '')
+    .replace(/\s*->\s*/g, '\n→ ')
+}
 
 // --- 차트 및 필터 상태 ---
 const performanceChartRef = ref(null)
@@ -751,9 +785,38 @@ watch([selectedDeepCategory, selectedDeepMetric, selectedPeerId], renderDeepChar
                 <div v-else-if="riskError" class="text-[13px] text-[#EF4444]">
                   {{ riskError }}
                 </div>
-                <pre v-else class="text-[13px] md:text-[14px] text-[#333D4B] leading-7 tracking-[-0.2px] whitespace-pre-wrap font-sans">
-{{ riskAnalysis }}
-                </pre>
+                <template v-else>
+                  <div class="space-y-5">
+                    <div>
+                      <div class="flex items-center justify-between mb-3">
+                        <div class="flex items-center gap-2">
+                          <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-blue-100 text-[#3182F6] text-[11px] font-bold">✓</span>
+                          <h4 class="text-[14px] font-bold text-[#1F2A37] font-serif">핵심 투자 리스크 요약</h4>
+                        </div>
+                        <span class="text-[10px] text-[#8B95A1]">Summary</span>
+                      </div>
+                      <ul class="space-y-2">
+                        <li v-for="(item, idx) in analysisSections.summaryItems" :key="idx"
+                            class="bg-white rounded-[12px] border border-[#EEF2F6] px-3 py-2 text-[13px] md:text-[14px] text-[#333D4B] leading-6 whitespace-pre-wrap">
+                          <div class="flex items-start gap-2">
+                            <span class="text-[#3182F6] font-extrabold text-[14px] md:text-[15px] mt-[1px]">{{ idx + 1 }}.</span>
+                            <div>
+                              <p class="text-[14px] md:text-[15px] font-bold text-[#1F2A37] leading-6">{{ item.title }}</p>
+                              <p v-if="item.body" class="text-[13px] md:text-[14px] text-[#4B5563] leading-6 whitespace-pre-wrap">{{ item.body }}</p>
+                            </div>
+                          </div>
+                        </li>
+                      </ul>
+                    </div>
+
+                    <div>
+                      <h4 class="text-[13px] font-bold text-[#111827] font-mono mb-2">종합 판단</h4>
+                      <p class="text-[13px] md:text-[14px] text-[#374151] leading-7 tracking-[-0.2px] whitespace-pre-wrap font-sans">
+                        {{ analysisSections.judgmentText }}
+                      </p>
+                    </div>
+                  </div>
+                </template>
               </div>
             </div>
           </div>
