@@ -476,10 +476,6 @@ onMounted(() => {
                   <span class="text-[11px] text-gray-600 bg-white px-1.5 py-0.5 rounded border border-gray-200">
                      {{ company.compare.deepMetrics[selectedDeepCategory].items.find(i => i.key === selectedDeepMetric)?.name }}
                   </span>
-                  <span class="text-[10px] text-gray-400">vs</span>
-                  <span class="text-[11px] text-blue-600 bg-white px-1.5 py-0.5 rounded border border-blue-100 font-medium">
-                     {{ company.compare.peers.find(p => p.id === selectedPeerId)?.name || '유사기업' }}
-                  </span>
                 </h4>
                 <p class="text-[13px] text-gray-600 leading-relaxed break-keep whitespace-pre-line">
                   {{ currentPeerInsight }}
