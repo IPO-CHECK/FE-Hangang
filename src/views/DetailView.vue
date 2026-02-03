@@ -1,10 +1,10 @@
 <script setup>
-import {ref, onMounted, watch, nextTick, computed, onUnmounted} from 'vue'
-import {useRoute, useRouter} from 'vue-router'
+import { ref, onMounted, watch, nextTick, computed, onUnmounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import * as echarts from 'echarts'
 import axios from 'axios'
-// API 경로 확인 필요
-import {getUpcomingIpoRiskAnalysis} from '../api'
+// API 경로는 vite.config.js 프록시 설정(/api)을 따릅니다.
+import { getUpcomingIpoRiskAnalysis } from '../api'
 
 const route = useRoute()
 const router = useRouter()
@@ -12,7 +12,7 @@ const id = route.params.id
 
 // --- 상태 관리 ---
 const company = ref(null)         // 기업 상세 데이터
-const isLoading = ref(true)       // 로딩 상태
+const isLoading = ref(true)       // 전체 페이지 로딩 상태
 const isError = ref(false)
 
 // --- 위험 분석 관련 상태 ---
@@ -20,43 +20,22 @@ const riskAnalysis = ref('')
 const riskLoading = ref(false)
 const riskError = ref('')
 
-// --- [신규] 성장성 분석 데이터 (추후 API 연동 시 교체) ---
+// --- [신규] 성장성 분석 데이터 (목업) ---
 const growthAnalysis = ref({
   overallSummary: "2024년 매출 급증으로 기술 상업화 초기에 진입했으나, 지속적인 영업손실과 자본잠식으로 재무 리스크가 상존함. 글로벌 이중항체 시장의 고성장 수혜 기대와 PSR 51.3배의 높은 밸류에이션 부담이 공존하는 상황.",
   categories: [
-    {
-      title: "수익화 구조 (Revenue Structure)",
-      grade: "중",
-      reason: "매출 275억 원 발생은 긍정적이나, 일시적 기술료 성격이 강하고 영업이익 적자 전환.",
-      gradeColor: "text-amber-600 bg-amber-50"
-    },
-    {
-      title: "확장성 (Scalability)",
-      grade: "상",
-      reason: "글로벌 시장 연평균 18% 성장 및 정부 지원 정책으로 확장 잠재력 매우 높음.",
-      gradeColor: "text-green-600 bg-green-50"
-    },
-    {
-      title: "구조적 리스크 (Structural Risk)",
-      grade: "하",
-      reason: "자본잠식 상태와 지속적인 현금 소진(Cash Burn)으로 재무 건전성 취약.",
-      gradeColor: "text-red-600 bg-red-50"
-    },
-    {
-      title: "자원 확보 (Resource Investment)",
-      grade: "중",
-      reason: "400억 원 공모 자금은 단기 활용 가능하나, 글로벌 경쟁 대비 추가 조달 필요.",
-      gradeColor: "text-amber-600 bg-amber-50"
-    }
+    { title: "수익화 구조 (Revenue Structure)", grade: "중", reason: "매출 275억 원 발생은 긍정적이나, 일시적 기술료 성격이 강하고 영업이익 적자 전환.", gradeColor: "text-amber-600 bg-amber-50" },
+    { title: "확장성 (Scalability)", grade: "상", reason: "글로벌 시장 연평균 18% 성장 및 정부 지원 정책으로 확장 잠재력 매우 높음.", gradeColor: "text-green-600 bg-green-50" },
+    { title: "구조적 리스크 (Structural Risk)", grade: "하", reason: "자본잠식 상태와 지속적인 현금 소진(Cash Burn)으로 재무 건전성 취약.", gradeColor: "text-red-600 bg-red-50" },
+    { title: "자원 확보 (Resource Investment)", grade: "중", reason: "400억 원 공모 자금은 단기 활용 가능하나, 글로벌 경쟁 대비 추가 조달 필요.", gradeColor: "text-amber-600 bg-amber-50" }
   ]
 })
-
 
 // AI 분석 텍스트 파싱
 const analysisSections = computed(() => {
   const text = (riskAnalysis.value || '').trim()
   if (!text) {
-    return {summaryItems: [], judgmentText: ''}
+    return { summaryItems: [], judgmentText: '' }
   }
   const summaryMatch = text.match(/[\[【]핵심 투자 리스크 요약[\]】]\s*([\s\S]*?)(?=\n\s*[\[【]종합 판단[\]】]|$)/)
   const judgmentMatch = text.match(/[\[【]종합 판단[\]】]\s*([\s\S]*)$/)
@@ -75,7 +54,7 @@ const analysisSections = computed(() => {
       const parts = cleaned.split('\n')
       const title = parts.shift() || ''
       const body = parts.join('\n').trim()
-      return {title, body}
+      return { title, body }
     }),
     judgmentText: formatArrowBreaks(judgmentText),
   }
@@ -83,9 +62,7 @@ const analysisSections = computed(() => {
 
 function formatArrowBreaks(text) {
   if (!text) return ''
-  return text
-      .replace(/^\s*\d+\.\s*/, '')
-      .replace(/\s*->\s*/g, '\n→ ')
+  return text.replace(/^\s*\d+\.\s*/, '').replace(/\s*->\s*/g, '\n→ ')
 }
 
 // --- 차트 및 필터 상태 ---
@@ -100,18 +77,25 @@ const selectedDeepMetric = ref('')
 const selectedPeerId = ref(null)
 const selectedValuationScenario = ref('standard')
 
-// const API_BASE_URL = 'http://localhost:8080/api'
+// [중요] vite.config.js의 proxy 설정을 사용하므로 상대 경로 '/api' 사용
 const API_BASE_URL = '/api'
 
-// --- 데이터 가져오기 ---
+// --- 데이터 가져오기 (2.5초 지연 적용) ---
 const fetchCompanyDetail = async (targetId) => {
   try {
     isLoading.value = true
     isError.value = false
 
-    const response = await axios.get(`${API_BASE_URL}/upcoming-ipo/${targetId}/financials`)
+    // [핵심 로직] API 요청과 2.5초 타이머를 동시에 실행 (Promise.all)
+    // 데이터가 0.1초 만에 와도 2.5초를 기다리고, 3초 걸리면 3초 기다림.
+    const [response] = await Promise.all([
+      axios.get(`${API_BASE_URL}/upcoming-ipo/${targetId}/financials`),
+      new Promise(resolve => setTimeout(resolve, 2500)) // ⏳ 최소 2.5초 대기
+    ])
+
     company.value = response.data
 
+    // 초기값 설정
     if (company.value) {
       if (company.value.deepMetrics?.[selectedDeepCategory.value]?.items?.length > 0) {
         selectedDeepMetric.value = company.value.deepMetrics[selectedDeepCategory.value].items[0].key
@@ -121,6 +105,7 @@ const fetchCompanyDetail = async (targetId) => {
       }
     }
 
+    // DOM 렌더링 후 차트 그리기
     await nextTick()
     setTimeout(() => {
       if (company.value?.financials) renderPerfChart()
@@ -134,9 +119,13 @@ const fetchCompanyDetail = async (targetId) => {
     isLoading.value = false
   }
 
+  // 위험 분석 데이터 로드 (페이지 로드 후 별도로 진행)
   try {
     riskLoading.value = true
     riskError.value = ''
+    // 여기도 살짝 지연을 주면 "순차적 분석" 느낌이 남 (선택 사항, 현재 1초)
+    await new Promise(resolve => setTimeout(resolve, 1000));
+
     const analysis = await getUpcomingIpoRiskAnalysis(targetId)
     riskAnalysis.value = analysis?.analysisText || ''
   } catch (error) {
@@ -168,7 +157,6 @@ const renderPerfChart = () => {
         const item = params[0];
         const val = item.value;
         const color = item.color;
-
         return `${item.name}<br/>
                 <span style="display:inline-block;margin-right:5px;border-radius:10px;width:10px;height:10px;background-color:${color};"></span>
                 ${selectedPerfMetric.value}: <b>${val.toLocaleString()}</b> 백만원`
@@ -274,13 +262,11 @@ onUnmounted(() => {
 
 // --- Watchers ---
 watch(selectedPerfMetric, renderPerfChart)
-
 watch(selectedDeepCategory, (newVal) => {
   if (company.value?.deepMetrics) {
     selectedDeepMetric.value = company.value.deepMetrics[newVal].items[0].key
   }
 })
-
 watch([selectedDeepCategory, selectedDeepMetric, selectedPeerId], renderDeepChart)
 </script>
 
@@ -289,7 +275,7 @@ watch([selectedDeepCategory, selectedDeepMetric, selectedPeerId], renderDeepChar
 
     <div v-if="isLoading" class="flex flex-col items-center justify-center min-h-screen">
       <div class="animate-spin h-8 w-8 border-4 border-[#3182F6] border-t-transparent rounded-full mb-4"></div>
-      <p class="text-[#8B95A1] font-medium">데이터 분석 중...</p>
+      <p class="text-[#8B95A1] font-medium animate-pulse">AI Analyst가 기업 데이터를 분석 중입니다...</p>
     </div>
 
     <div v-else-if="isError" class="flex flex-col items-center justify-center min-h-screen px-10 text-center">
@@ -597,7 +583,8 @@ watch([selectedDeepCategory, selectedDeepMetric, selectedPeerId], renderDeepChar
                                 }}</p>
                               <p v-if="item.body"
                                  class="text-[13px] md:text-[14px] text-[#4B5563] leading-6 whitespace-pre-wrap">
-                                {{ item.body }}</p>
+                                {{ item.body }}
+                              </p>
                             </div>
                           </div>
                         </li>

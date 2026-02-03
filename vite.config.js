@@ -15,7 +15,7 @@ export default defineConfig({
 
     // 2. 에러 메시지에 나온 호스트 주소를 직접 명시
     allowedHosts: [
-      '2ad4b6f298bd.ngrok-free.app'
+      'a4a4dfd6d730.ngrok-free.app'
     ],
 
     // 3. 백엔드 프록시 설정
